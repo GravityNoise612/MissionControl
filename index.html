@@ -233,9 +233,26 @@
   .wotd-def { font-size: 14px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 8px; }
   .wotd-example { font-size: 13px; color: var(--text-tertiary); font-style: italic; line-height: 1.5; border-left: 2px solid var(--border-hover); padding-left: 10px; }
   .wotd-date { font-size: 11px; color: var(--text-tertiary); margin-top: 10px; letter-spacing: 0.04em; }
+
+  body.has-bg { background-color: #000; }
+  #bg-layer {
+    position: fixed; inset: 0; z-index: 0;
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    opacity: 0.22; pointer-events: none; transition: opacity 0.4s;
+  }
+  .app { position: relative; z-index: 1; }
+  .btn-bg {
+    height: 30px; padding: 0 12px; background: transparent;
+    border: 0.5px solid var(--border-hover); border-radius: var(--radius-md);
+    color: var(--text-secondary); font-size: 13px; font-family: var(--font);
+    cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap;
+  }
+  .btn-bg:hover { color: var(--text-primary); background: var(--bg-surface); }
+  .btn-bg.active { border-color: var(--purple); color: var(--purple); }
 </style>
 </head>
 <body>
+<div id="bg-layer"></div>
 <div class="app">
   <div class="header">
     <h1>&#9733; Mission Control &#9733;</h1>
@@ -246,6 +263,8 @@
     <span class="save-status" id="save-status">Loading missions...</span>
     <div class="save-actions">
       <button class="btn-sm primary" onclick="saveEvents()">&#128190; Save missions</button>
+      <button class="btn-bg" id="bg-btn" onclick="document.getElementById('bg-input').click()" title="Set background image">&#127748; Background</button>
+      <input type="file" id="bg-input" accept="image/*" style="display:none;" onchange="handleBgUpload(event)" />
       <div id="reset-wrap" style="display:flex; gap:6px; align-items:center;">
         <button class="btn-sm" id="reset-btn" onclick="askReset()">Reset</button>
         <span id="reset-confirm" style="display:none; font-size:12px; color:var(--text-secondary);">Are you sure?</span>
@@ -729,6 +748,59 @@ function handleCardClick(e, id) {
   card.classList.toggle('expanded');
 }
 
+const BG_KEY = 'mission-control-bg';
+
+function applyBackground(dataUrl) {
+  const layer = document.getElementById('bg-layer');
+  const btn = document.getElementById('bg-btn');
+  if (dataUrl) {
+    layer.style.backgroundImage = `url(${dataUrl})`;
+    document.body.classList.add('has-bg');
+    btn.classList.add('active');
+    btn.title = 'Change or remove background';
+  } else {
+    layer.style.backgroundImage = '';
+    document.body.classList.remove('has-bg');
+    btn.classList.remove('active');
+  }
+}
+
+function handleBgUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    try { localStorage.setItem(BG_KEY, dataUrl); } catch(err) {
+      // If image is too large for localStorage, store a resized version
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const max = 1200;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const resized = canvas.toDataURL('image/jpeg', 0.7);
+        try { localStorage.setItem(BG_KEY, resized); } catch(e2) {}
+        applyBackground(resized);
+      };
+      img.src = dataUrl;
+      return;
+    }
+    applyBackground(dataUrl);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function loadBackground() {
+  try {
+    const saved = localStorage.getItem(BG_KEY);
+    if (saved) applyBackground(saved);
+  } catch(e) {}
+}
+
 document.addEventListener('click', e => {
   const wrap = document.getElementById('emoji-picker-wrap');
   if (wrap && !wrap.contains(e.target)) closePicker();
@@ -738,6 +810,7 @@ document.getElementById('inp-name').addEventListener('keydown', e => { if (e.key
 
 buildPicker();
 loadEvents();
+loadBackground();
 renderWordOfDay();
 document.getElementById('today-bar').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 </script>
