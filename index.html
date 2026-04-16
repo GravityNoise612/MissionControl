@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Mission Control" />
+<meta name="theme-color" content="#0b0b1a" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<title>Mission Control</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-page: #0b0b1a;
+    --bg-card: #12122a;
+    --bg-surface: #1a1a30;
+    --bg-input: #0f0f22;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.16);
+    --text-primary: #e8e8f0;
+    --text-secondary: #9090b0;
+    --text-tertiary: #5a5a78;
+    --purple: #7F77DD;
+    --purple-dim: #1a1a3e;
+    --green: #1D9E75;
+    --green-dim: #0d2a2a;
+    --pink: #D4537E;
+    --pink-dim: #2a1a2a;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    padding-top: max(2rem, env(safe-area-inset-top));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .app { max-width: 900px; margin: 0 auto; }
+
+  .header { text-align: center; margin-bottom: 2rem; }
+  .header h1 { font-size: 26px; font-weight: 500; letter-spacing: 0.06em; color: var(--text-primary); }
+  .header p { font-size: 14px; color: var(--text-secondary); margin-top: 6px; }
+
+  .save-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 1.5rem; padding: 10px 14px;
+    background: var(--bg-surface); border: 0.5px solid var(--border); border-radius: var(--radius-md);
+  }
+  .save-status { font-size: 13px; color: var(--text-secondary); }
+  .save-status.saved { color: var(--green); }
+  .save-status.error { color: #E24B4A; }
+  .save-actions { display: flex; gap: 8px; }
+  .btn-sm {
+    height: 30px; padding: 0 14px; background: transparent;
+    border: 0.5px solid var(--border-hover); border-radius: var(--radius-md);
+    color: var(--text-primary); font-size: 13px; font-family: var(--font); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-sm:hover { background: var(--bg-surface); }
+  .btn-sm.primary { border-color: var(--purple); color: var(--purple); }
+  .btn-sm.primary:hover { background: var(--purple-dim); }
+
+  .section-title {
+    font-size: 11px; font-weight: 500; color: var(--text-tertiary);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px;
+  }
+
+  .add-section {
+    background: var(--bg-surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 0; margin-bottom: 2rem; overflow: visible;
+  }
+  .add-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 0.9rem 1.25rem; background: transparent; border: none;
+    color: var(--text-secondary); font-size: 14px; font-family: var(--font);
+    cursor: pointer; border-radius: var(--radius-lg); transition: color 0.15s;
+  }
+  .add-toggle:hover { color: var(--text-primary); }
+  .add-section.open .add-toggle { color: var(--text-primary); border-bottom: 0.5px solid var(--border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
+  .form-group label { font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; }
+  .form-group input, .form-group select {
+    height: 36px; padding: 0 10px;
+    border: 0.5px solid var(--border-hover); border-radius: var(--radius-md);
+    background: var(--bg-input); color: var(--text-primary);
+    font-size: 14px; font-family: var(--font);
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--purple); }
+  .form-group input[type="date"] { padding: 0 8px; color-scheme: dark; }
+  .form-group select option { background: var(--bg-input); }
+  .btn-add {
+    height: 36px; padding: 0 20px; background: transparent;
+    border: 0.5px solid var(--border-hover); border-radius: var(--radius-md);
+    color: var(--text-primary); font-size: 14px; font-family: var(--font); cursor: pointer;
+    white-space: nowrap; transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-add:hover { background: var(--bg-card); border-color: var(--purple); }
+
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 2rem; align-items: start; }
+
+  .card {
+    background: var(--bg-card); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem;
+    position: relative; transition: border-color 0.2s;
+    overflow: hidden;
+  }
+  .card:hover { border-color: var(--border-hover); }
+  .tag-holiday { border-top: 2px solid var(--purple); }
+  .tag-vacation { border-top: 2px solid var(--green); }
+  .tag-birthday { border-top: 2px solid var(--pink); }
+
+  .card-emoji { font-size: 28px; margin-bottom: 8px; display: block; }
+  .card-name { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+  .card-date-str { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; margin-bottom: 12px; }
+
+  .countdown-row { display: flex; gap: 8px; }
+  .cnt-box {
+    background: var(--bg-page); border: 0.5px solid var(--border);
+    border-radius: var(--radius-md); padding: 6px 8px; text-align: center; flex: 1;
+  }
+  .cnt-num { font-size: 20px; font-weight: 500; color: var(--text-primary); line-height: 1; }
+  .cnt-lbl { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; letter-spacing: 0.04em; }
+
+  .bar-wrap { margin-top: 12px; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+  .btn-del {
+    background: none; border: none;
+    color: var(--text-tertiary); font-size: 14px; cursor: pointer;
+    line-height: 1; padding: 3px 5px; border-radius: 4px; transition: color 0.15s, background 0.15s;
+  }
+  .btn-del:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+  .del-wrap { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px; }
+  .del-confirm { display: flex; align-items: center; gap: 5px; }
+  .btn-del-yes { height: 22px; padding: 0 8px; font-size: 11px; font-family: var(--font); cursor: pointer; border-radius: 4px; border: 0.5px solid #E24B4A; color: #E24B4A; background: transparent; }
+  .btn-del-yes:hover { background: rgba(226,75,74,0.15); }
+  .btn-del-no { height: 22px; padding: 0 8px; font-size: 11px; font-family: var(--font); cursor: pointer; border-radius: 4px; border: 0.5px solid var(--border-hover); color: var(--text-secondary); background: transparent; }
+  .btn-del-no:hover { background: rgba(255,255,255,0.06); }
+
+  .past-label { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; font-style: italic; }
+  .rocket { display: none; }
+
+  .card { cursor: pointer; }
+  .card.expanded { border-color: var(--border-hover); padding-bottom: 1.5rem; }
+  .tag-holiday.expanded { box-shadow: 0 0 0 1px var(--purple); }
+  .tag-vacation.expanded { box-shadow: 0 0 0 1px var(--green); }
+  .tag-birthday.expanded { box-shadow: 0 0 0 1px var(--pink); }
+
+  .expand-panel {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+    opacity: 0;
+  }
+  .card.expanded .expand-panel { max-height: 600px; opacity: 1; }
+
+  .phrase-bubble {
+    margin-top: 14px; padding: 10px 12px;
+    background: rgba(255,255,255,0.04); border: 0.5px solid var(--border-hover);
+    border-radius: var(--radius-md);
+    font-size: 13px; line-height: 1.5; color: var(--text-secondary);
+    font-style: italic;
+  }
+  .phrase-bubble strong { font-style: normal; font-weight: 500; color: var(--text-primary); }
+
+  .expand-hint { font-size: 10px; color: var(--text-tertiary); margin-top: 10px; letter-spacing: 0.04em; text-align: right; }
+  .card.expanded .expand-hint { display: none; }
+
+  .mission-track {
+    margin-top: 14px;
+    padding: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .mission-track-label {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-tertiary); margin-bottom: 10px;
+  }
+  .mission-track-row {
+    display: flex; align-items: center; gap: 0; position: relative; height: 28px;
+  }
+  .track-bg {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden;
+  }
+  .track-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.22,1,0.36,1);
+  }
+  .track-rocket {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 16px; transition: left 0.8s cubic-bezier(0.22,1,0.36,1);
+    filter: drop-shadow(0 0 4px rgba(255,255,255,0.3));
+    line-height: 1; margin-top: -1px;
+  }
+  .track-ends {
+    display: flex; justify-content: space-between;
+    margin-top: 6px; font-size: 10px; color: var(--text-tertiary);
+  }
+  .track-pct {
+    text-align: center; font-size: 11px; font-weight: 500;
+    color: var(--text-secondary); margin-top: 4px;
+  }
+
+  @media (max-width: 500px) {
+    .form-row { flex-direction: column; }
+    .btn-add { width: 100%; }
+  }
+
+  .wotd-card {
+    background: var(--bg-surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem; display: flex; align-items: flex-start; gap: 1rem;
+  }
+  .wotd-icon { font-size: 32px; flex-shrink: 0; margin-top: 2px; }
+  .wotd-body { flex: 1; }
+  .wotd-word { font-size: 22px; font-weight: 500; color: var(--text-primary); letter-spacing: 0.02em; margin-bottom: 2px; }
+  .wotd-type { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+  .wotd-def { font-size: 14px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 8px; }
+  .wotd-example { font-size: 13px; color: var(--text-tertiary); font-style: italic; line-height: 1.5; border-left: 2px solid var(--border-hover); padding-left: 10px; }
+  .wotd-date { font-size: 11px; color: var(--text-tertiary); margin-top: 10px; letter-spacing: 0.04em; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>&#9733; Mission Control &#9733;</h1>
+    <p>Your next adventures — all in one place</p>
+  </div>
+
+  <div class="save-bar">
+    <span class="save-status" id="save-status">Loading missions...</span>
+    <div class="save-actions">
+      <button class="btn-sm primary" onclick="saveEvents()">&#128190; Save missions</button>
+      <div id="reset-wrap" style="display:flex; gap:6px; align-items:center;">
+        <button class="btn-sm" id="reset-btn" onclick="askReset()">Reset</button>
+        <span id="reset-confirm" style="display:none; font-size:12px; color:var(--text-secondary);">Are you sure?</span>
+        <button class="btn-sm" id="reset-yes" style="display:none; border-color:#E24B4A; color:#E24B4A;" onclick="confirmReset()">Yes</button>
+        <button class="btn-sm" id="reset-no" style="display:none;" onclick="cancelReset()">No</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="today-bar" style="text-align:center; margin-bottom:1.5rem; font-size:18px; font-weight:500; color:var(--text-secondary); letter-spacing:0.03em;"></div>
+
+  <div class="add-section" id="add-section">
+    <button class="add-toggle" id="add-toggle" onclick="toggleAddSection()">
+      <span>+ Add a new mission</span>
+      <span id="add-toggle-arrow" style="font-size:11px; transition: transform 0.3s;">▾</span>
+    </button>
+    <div id="add-form" style="max-height:0; overflow:hidden; transition: max-height 0.35s ease, opacity 0.3s ease; opacity:0; padding:0 1.25rem;">
+      <div class="form-row" style="margin-top:1rem;">
+        <div class="form-group">
+          <label>Mission name</label>
+          <input type="text" id="inp-name" placeholder="e.g. Beach vacation" maxlength="30" />
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="inp-date" />
+        </div>
+        <div class="form-group" style="max-width:130px;">
+          <label>Type</label>
+          <select id="inp-type">
+            <option value="holiday">Holiday</option>
+            <option value="vacation">Vacation</option>
+            <option value="birthday">Birthday</option>
+          </select>
+        </div>
+        <div class="form-group" style="max-width:110px; position:relative;">
+          <label>Icon</label>
+          <div id="emoji-picker-wrap" style="position:relative;">
+            <button type="button" id="emoji-btn" onclick="togglePicker()" style="height:36px;width:100%;background:var(--bg-input);border:0.5px solid var(--border-hover);border-radius:var(--radius-md);color:var(--text-primary);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;transition:border-color 0.15s;">
+              <span id="emoji-preview">🎉</span>
+              <span style="font-size:10px;color:var(--text-tertiary);margin-left:auto;">▾</span>
+            </button>
+            <div id="emoji-dropdown" style="display:none;position:absolute;top:40px;left:0;z-index:100;background:var(--bg-surface);border:0.5px solid var(--border-hover);border-radius:var(--radius-lg);padding:10px;width:240px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+              <div id="emoji-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;border-bottom:0.5px solid var(--border);padding-bottom:8px;"></div>
+              <div id="emoji-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addEvent()">Save &nearr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Upcoming missions</div>
+  <div class="cards-grid" id="cards-container"></div>
+
+  <div class="section-title" style="margin-top:0.5rem;">Word of the day</div>
+  <div id="wotd-card" class="wotd-card"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'mission-control-events';
+
+const DEFAULTS = [
+  { id: 1, name: "Independence Day",  emoji: "🎉", type: "holiday",  date: "2025-07-04" },
+  { id: 2, name: "Halloween",         emoji: "🎃", type: "holiday",  date: "2025-10-31" },
+  { id: 3, name: "Thanksgiving",      emoji: "🦃", type: "holiday",  date: "2025-11-27" },
+  { id: 4, name: "Christmas",         emoji: "🎄", type: "holiday",  date: "2025-12-25" },
+  { id: 5, name: "New Year 2026",     emoji: "🌊", type: "holiday",  date: "2026-01-01" },
+];
+
+let events = [];
+let nextId = 10;
+let unsaved = false;
+
+const typeColors = {
+  holiday:  { bar: '#7F77DD' },
+  vacation: { bar: '#1D9E75' },
+  birthday: { bar: '#D4537E' },
+};
+
+function setStatus(msg, type) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  el.className = 'save-status' + (type ? ' ' + type : '');
+}
+
+function loadEvents() {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        events = parsed.map(e => e.createdAt ? e : { ...e, createdAt: today });
+        nextId = Math.max(...events.map(e => e.id), 9) + 1;
+        setStatus('Missions loaded from last session ✓', 'saved');
+        renderAll();
+        return;
+      }
+    }
+  } catch(e) {}
+  events = DEFAULTS.map(e => ({ ...e, createdAt: today }));
+  setStatus('No saved missions — showing defaults');
+  renderAll();
+}
+
+function saveEvents() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    unsaved = false;
+    setStatus('Missions saved! ✓', 'saved');
+    setTimeout(() => { if (!unsaved) setStatus('All missions saved ✓', 'saved'); }, 2000);
+  } catch(e) {
+    setStatus('Could not save — try again', 'error');
+  }
+}
+
+function askReset() {
+  document.getElementById('reset-btn').style.display = 'none';
+  document.getElementById('reset-confirm').style.display = 'inline';
+  document.getElementById('reset-yes').style.display = 'inline';
+  document.getElementById('reset-no').style.display = 'inline';
+}
+
+function cancelReset() {
+  document.getElementById('reset-btn').style.display = 'inline';
+  document.getElementById('reset-confirm').style.display = 'none';
+  document.getElementById('reset-yes').style.display = 'none';
+  document.getElementById('reset-no').style.display = 'none';
+}
+
+function confirmReset() {
+  cancelReset();
+  const today = new Date().toISOString().slice(0, 10);
+  events = DEFAULTS.map(e => ({ ...e, createdAt: today }));
+  nextId = 10;
+  saveEvents();
+  renderAll();
+}
+
+function toggleAddSection() {
+  const section = document.getElementById('add-section');
+  const form = document.getElementById('add-form');
+  const arrow = document.getElementById('add-toggle-arrow');
+  const isOpen = section.classList.contains('open');
+  if (isOpen) {
+    form.style.maxHeight = '0';
+    form.style.opacity = '0';
+    form.style.overflow = 'hidden';
+    arrow.style.transform = 'rotate(0deg)';
+    section.classList.remove('open');
+  } else {
+    form.style.maxHeight = '400px';
+    form.style.opacity = '1';
+    arrow.style.transform = 'rotate(180deg)';
+    section.classList.add('open');
+    setTimeout(() => {
+      form.style.overflow = 'visible';
+      document.getElementById('inp-name').focus();
+    }, 350);
+  }
+}
+
+
+function getDaysUntil(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((new Date(dateStr + 'T00:00:00') - today) / 86400000);
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function getProgress(dateStr) {
+  const days = getDaysUntil(dateStr);
+  if (days <= 0) return 100;
+  if (days > 365) return 2;
+  return Math.max(2, Math.round((1 - days / 365) * 100));
+}
+
+const cardFactIndex = {};
+
+function getSpaceFact(days, evId) {
+  if (days < 0) return { icon: '🌠', text: 'This mission already launched — hope it was out of this world!' };
+  if (days === 0) return { icon: '🚀', text: 'Liftoff! Today is the day — blast off!' };
+
+  const facts = [
+    { icon: '🌙', text: `In ${days} days, the Moon will have completed about <strong>${Math.round(days/29.5 * 10)/10} full orbit${days > 29 ? 's' : ''}</strong> around Earth.` },
+    { icon: '☀', text: `Light from the Sun takes just <strong>8 minutes 20 seconds</strong> to reach Earth — in ${days} days, it will have made <strong>${Math.round(days * 24 * 60 / 8.33).toLocaleString()} trips</strong>.` },
+    { icon: '⭐', text: `The nearest star beyond our Sun, Proxima Centauri, is <strong>4.24 light-years</strong> away. In ${days} days you could cover <strong>${Math.round(days/365 * 100) / 100}%</strong> of the distance at light speed!` },
+    { icon: '🪐', text: `Saturn has <strong>146 known moons</strong>. In ${days} days, its largest moon Titan will complete about <strong>${Math.round(days/15.9 * 10)/10} orbits</strong> around it.` },
+    { icon: '🌌', text: `Our solar system travels at <strong>828,000 km/h</strong> around the Milky Way. In ${days} days we'll move about <strong>${Math.round(days * 828000 * 24 / 1e9)} billion km</strong> around the galaxy.` },
+    { icon: '🔭', text: `The James Webb Space Telescope can see galaxies over <strong>13 billion light-years</strong> away — nearly as old as the universe itself!` },
+    { icon: '☄', text: `A comet travels at up to <strong>70 km per second</strong>. In ${days} days, one could cover about <strong>${Math.round(days * 70 * 86400 / 1e6)} million km</strong> — farther than Earth to the Sun!` },
+    { icon: '🛸', text: `Voyager 1, launched in 1977, travels at <strong>61,500 km/h</strong>. In ${days} days it will drift another <strong>${Math.round(days * 61500 * 24 / 1e6)} million km</strong> deeper into interstellar space.` },
+    { icon: '💫', text: `A day on Venus lasts longer than its year — <strong>243 Earth days</strong> to spin once. So ${days} Earth days equals <strong>${Math.round(days/243 * 10)/10} Venusian days</strong>.` },
+    { icon: '🌠', text: `Every second, the Sun fuses <strong>600 million tonnes</strong> of hydrogen into helium. It's been doing that for 4.6 billion years and still has 5 billion to go!` },
+    { icon: '🪐', text: `Jupiter is so massive that <strong>1,300 Earths</strong> could fit inside it. Its Great Red Spot storm has been raging for over <strong>350 years</strong>!` },
+    { icon: '🚀', text: `The ISS orbits Earth every <strong>90 minutes</strong>. In ${days} days, it will complete about <strong>${(days * 16).toLocaleString()} orbits</strong> around our planet.` },
+    { icon: '🌍', text: `There are an estimated <strong>100 billion stars</strong> in the Milky Way — roughly the same as the number of grains of sand on all of Earth's beaches.` },
+    { icon: '🌑', text: `The Moon is drifting away from Earth at about <strong>3.8 cm per year</strong>. In ${days} days it will move about <strong>${Math.round(days * 3.8/365 * 10)/10} mm</strong> further away!` },
+    { icon: '🔥', text: `The surface of the Sun is <strong>5,500°C</strong> — but its outer atmosphere, the corona, reaches over <strong>1,000,000°C</strong>. Scientists are still puzzling over why!` },
+    { icon: '🌊', text: `Neptune's winds reach <strong>2,100 km/h</strong> — the fastest in the solar system. A storm there could last longer than your entire lifetime.` },
+    { icon: '🧊', text: `Mars has polar ice caps made of <strong>water and dry ice</strong>. If all of Mars's water ice melted, it would cover the planet in an ocean <strong>35 metres deep</strong>.` },
+    { icon: '⚡', text: `A bolt of lightning is <strong>5 times hotter</strong> than the surface of the Sun — reaching about 30,000°C in a fraction of a second.` },
+    { icon: '🌐', text: `The universe is estimated to be <strong>13.8 billion years old</strong>. If that were compressed into one year, all of human history would fit in the last <strong>10 seconds</strong>.` },
+    { icon: '🛰', text: `There are over <strong>8,000 satellites</strong> currently orbiting Earth. On a clear night, you can sometimes spot them moving slowly across the sky!` },
+  ];
+
+  if (cardFactIndex[evId] === undefined) {
+    cardFactIndex[evId] = Math.floor(Math.random() * facts.length);
+  }
+  return facts[cardFactIndex[evId]];
+}
+
+function getMissionProgress(ev) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(ev.date + 'T00:00:00');
+  const created = new Date((ev.createdAt || ev.date) + 'T00:00:00');
+  const totalSpan = Math.round((target - created) / 86400000);
+  const elapsed = Math.round((today - created) / 86400000);
+  const pct = totalSpan <= 0 ? 100 : Math.min(100, Math.max(0, Math.round((elapsed / totalSpan) * 100)));
+  return { pct, startLabel: ev.createdAt || ev.date, endLabel: ev.date, elapsed, totalSpan };
+}
+
+function buildMissionTrack(ev, color) {
+  const { pct, startLabel, endLabel, elapsed, totalSpan } = getMissionProgress(ev);
+  const rocketLeft = Math.min(92, Math.max(2, pct)) + '%';
+  const startFmt = new Date(startLabel + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endFmt   = new Date(endLabel   + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const pctLabel = pct >= 100 ? 'Mission complete!' : `${pct}% of the journey traveled`;
+
+  return `<div class="mission-track">
+    <div class="mission-track-label">Mission progress</div>
+    <div class="mission-track-row">
+      <div class="track-bg">
+        <div class="track-fill" id="tf-${ev.id}" style="width:0%;background:${color};"></div>
+      </div>
+      <div class="track-rocket" id="tr-${ev.id}" style="left:0%;">🚀</div>
+    </div>
+    <div class="track-ends"><span>${startFmt}</span><span>${endFmt}</span></div>
+    <div class="track-pct">${pctLabel}</div>
+  </div>`;
+}
+
+function animateTrack(id, pct, color) {
+  const fill   = document.getElementById('tf-' + id);
+  const rocket = document.getElementById('tr-' + id);
+  if (!fill || !rocket) return;
+  const clampedPct = Math.min(100, Math.max(0, pct));
+  const rocketLeft = Math.min(92, Math.max(2, clampedPct));
+  requestAnimationFrame(() => {
+    fill.style.width = clampedPct + '%';
+    rocket.style.left = rocketLeft + '%';
+  });
+}
+function renderCard(ev) {
+  const days = getDaysUntil(ev.date);
+  const color = typeColors[ev.type] || typeColors.holiday;
+  const typeClass = 'tag-' + (ev.type || 'holiday');
+  const fact = getSpaceFact(days, ev.id);
+  const track = buildMissionTrack(ev, color.bar);
+
+  let countdownHtml = '';
+  if (days < 0) {
+    countdownHtml = `<div class="past-label">This one already happened!</div>`;
+  } else if (days === 0) {
+    countdownHtml = `<div style="font-size:18px;font-weight:500;margin-top:8px;">Today! 🌟</div>`;
+  } else {
+    const weeks = Math.floor(days / 7);
+    const rem = days % 7;
+    if (days >= 14) {
+      countdownHtml = `<div class="countdown-row">
+        <div class="cnt-box"><div class="cnt-num">${weeks}</div><div class="cnt-lbl">weeks</div></div>
+        <div class="cnt-box"><div class="cnt-num">${rem}</div><div class="cnt-lbl">days</div></div>
+      </div>`;
+    } else {
+      countdownHtml = `<div class="countdown-row">
+        <div class="cnt-box"><div class="cnt-num">${days}</div><div class="cnt-lbl">${days === 1 ? 'day' : 'days'}</div></div>
+      </div>`;
+    }
+  }
+
+  return `<div class="card ${typeClass}" id="card-${ev.id}" data-id="${ev.id}" onclick="handleCardClick(event, ${ev.id})">
+    <div class="del-wrap" id="del-wrap-${ev.id}" onclick="event.stopPropagation()">
+      <button class="btn-del" onclick="askDel(${ev.id})" title="Remove">✕</button>
+      <span class="del-confirm" id="del-confirm-${ev.id}" style="display:none;">
+        <span style="font-size:11px;color:var(--text-secondary);">Remove?</span>
+        <button class="btn-del-yes" onclick="removeEvent(${ev.id})">Yes</button>
+        <button class="btn-del-no" onclick="cancelDel(${ev.id})">No</button>
+      </span>
+    </div>
+    <span class="card-emoji">${ev.emoji}</span>
+    <div class="card-name">${ev.name}</div>
+    <div class="card-date-str">${formatDate(ev.date)}</div>
+    ${countdownHtml}
+    <div class="bar-wrap"><div class="bar-fill" style="width:${getProgress(ev.date)}%;background:${color.bar};"></div></div>
+    <div class="expand-hint">tap to explore ▾</div>
+    <div class="expand-panel">
+      <div class="phrase-bubble">
+        <span style="font-size:22px;display:block;margin-bottom:6px;">${fact.icon}</span>
+        <span style="font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-tertiary);display:block;margin-bottom:5px;">Space fact</span>
+        ${fact.text}
+      </div>
+      ${track}
+    </div>
+    <div class="rocket">🚀</div>
+  </div>`;
+}
+
+function renderAll() {
+  const sorted = [...events].sort((a, b) => getDaysUntil(a.date) - getDaysUntil(b.date));
+  document.getElementById('cards-container').innerHTML = sorted.length
+    ? sorted.map(renderCard).join('')
+    : '<p class="empty-msg">No missions yet — add one above!</p>';
+}
+
+function markUnsaved() {
+  unsaved = true;
+  setStatus('Unsaved changes — hit Save missions');
+}
+
+function addEvent() {
+  const name = document.getElementById('inp-name').value.trim();
+  const date = document.getElementById('inp-date').value;
+  const type = document.getElementById('inp-type').value;
+  const emoji = selectedEmoji || '🎉';
+  if (!name || !date) return;
+  events.push({ id: nextId++, name, emoji, type, date, createdAt: new Date().toISOString().slice(0,10) });
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-date').value = '';
+  markUnsaved();
+  renderAll();
+  toggleAddSection();
+}
+
+function askDel(id) {
+  document.querySelector(`#del-wrap-${id} .btn-del`).style.display = 'none';
+  document.getElementById('del-confirm-' + id).style.display = 'flex';
+}
+
+function cancelDel(id) {
+  document.querySelector(`#del-wrap-${id} .btn-del`).style.display = 'inline';
+  document.getElementById('del-confirm-' + id).style.display = 'none';
+}
+
+
+function removeEvent(id) {
+  events = events.filter(e => e.id !== id);
+  markUnsaved();
+  renderAll();
+}
+
+const WORDS = [
+  { word: "Curious", type: "adjective", icon: "🔍", def: "Wanting to learn about new things and find out how they work.", ex: "She was so curious about how stars are formed that she read every book she could find." },
+  { word: "Enormous", type: "adjective", icon: "🐘", def: "Very, very big — much larger than usual.", ex: "The elephant at the zoo was enormous — it was taller than a car!" },
+  { word: "Orbit", type: "noun / verb", icon: "🌍", def: "The curved path one object takes as it travels around another in space.", ex: "The Moon's orbit around Earth takes about 27 days to complete." },
+  { word: "Brave", type: "adjective", icon: "🦁", def: "Not scared to do something even when it feels difficult or scary.", ex: "It was brave of her to try the new climbing wall for the first time." },
+  { word: "Ancient", type: "adjective", icon: "🏛️", def: "Something that is extremely old — from thousands of years ago.", ex: "The ancient pyramid had been standing in the desert for over 4,000 years." },
+  { word: "Magnificent", type: "adjective", icon: "✨", def: "Extremely beautiful or impressive — something that takes your breath away.", ex: "The fireworks display was magnificent — the whole sky lit up with colour." },
+  { word: "Gravity", type: "noun", icon: "🍎", def: "The invisible force that pulls objects toward each other, like how Earth pulls you down to the ground.", ex: "Without gravity, your juice would float right out of your cup!" },
+  { word: "Discover", type: "verb", icon: "🗺️", def: "To find or learn something for the very first time.", ex: "Scientists hope to discover new planets beyond our solar system." },
+  { word: "Patient", type: "adjective", icon: "⏳", def: "Being calm and not getting upset while waiting for something.", ex: "He was patient while waiting for his birthday — only 10 more days to go!" },
+  { word: "Telescope", type: "noun", icon: "🔭", def: "A tool that makes far-away things look bigger and closer, used to look at stars and planets.", ex: "With her telescope, she could see the craters on the Moon clearly." },
+  { word: "Persevere", type: "verb", icon: "💪", def: "To keep trying even when something is hard or takes a long time.", ex: "He had to persevere through lots of practice before he could ride his bike." },
+  { word: "Dazzling", type: "adjective", icon: "💎", def: "So bright or impressive that it is hard to look away — really wow-worthy!", ex: "The dazzling meteor shower lit up the whole night sky." },
+  { word: "Atmosphere", type: "noun", icon: "🌫️", def: "The layer of air and gases that wraps around a planet, like a big invisible blanket.", ex: "Earth's atmosphere protects us from the sun's harmful rays." },
+  { word: "Adventurous", type: "adjective", icon: "🧭", def: "Loving to try new and exciting things, especially exploring.", ex: "The adventurous astronaut signed up for a mission to the space station." },
+  { word: "Hibernate", type: "verb", icon: "🐻", def: "To go into a deep sleep through winter to save energy, like some animals do.", ex: "Bears hibernate through the cold winter months, sleeping for weeks at a time." },
+  { word: "Vibrant", type: "adjective", icon: "🌈", def: "Full of life, energy, and bright colour.", ex: "The vibrant autumn leaves were red, orange, and gold." },
+  { word: "Horizon", type: "noun", icon: "🌅", def: "The line far away where the sky seems to meet the land or sea.", ex: "They watched the sun slowly sink below the horizon as evening came." },
+  { word: "Estimate", type: "verb", icon: "🧮", def: "To make a careful guess about a number or amount without knowing for sure.", ex: "She tried to estimate how many stars she could see — maybe a thousand!" },
+  { word: "Comet", type: "noun", icon: "☄️", def: "A ball of rock and ice that travels through space and grows a glowing tail when it gets near the Sun.", ex: "The comet blazed across the sky like a slow-moving firework." },
+  { word: "Generous", type: "adjective", icon: "🎁", def: "Happy to give your time, help, or things to other people.", ex: "It was generous of him to share his snacks with everyone at the table." },
+  { word: "Fossil", type: "noun", icon: "🦕", def: "The preserved remains or shape of a plant or animal from millions of years ago, found in rock.", ex: "She found a fossil of a shell that was 200 million years old." },
+  { word: "Determined", type: "adjective", icon: "🎯", def: "Having your mind firmly set on achieving something and not giving up.", ex: "She was determined to finish the puzzle even though it had 500 pieces." },
+  { word: "Lunar", type: "adjective", icon: "🌙", def: "Having to do with the Moon.", ex: "A lunar eclipse happens when Earth's shadow falls across the Moon." },
+  { word: "Spectacular", type: "adjective", icon: "🎆", def: "Really amazing and exciting to see — like something from a movie!", ex: "The rocket launch was spectacular — we felt the ground shake from miles away." },
+  { word: "Migrate", type: "verb", icon: "🦅", def: "To travel a long distance to a different place, usually with the seasons.", ex: "Every autumn, millions of birds migrate south to warmer countries." },
+  { word: "Resilient", type: "adjective", icon: "🌱", def: "Being able to bounce back after something difficult or tough.", ex: "The little plant was resilient — even after the big storm, it kept growing." },
+  { word: "Constellation", type: "noun", icon: "⭐", def: "A group of stars that form a pattern or shape in the night sky, often with a name.", ex: "Orion is a constellation that looks like a hunter with a belt of three stars." },
+  { word: "Enthusiastic", type: "adjective", icon: "🙌", def: "Showing a lot of excitement and interest about something.", ex: "She was enthusiastic about the school trip to the planetarium." },
+  { word: "Evaporate", type: "verb", icon: "💧", def: "When a liquid slowly turns into a gas and disappears into the air.", ex: "After the rain, the puddles slowly evaporate when the sun comes out." },
+  { word: "Triumph", type: "noun / verb", icon: "🏆", def: "A great success or victory after working hard for something.", ex: "Finishing the race was a triumph — he had been training for three months!" },
+];
+
+function renderWordOfDay() {
+  const today = new Date();
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+  const word = WORDS[dayOfYear % WORDS.length];
+  const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  document.getElementById('wotd-card').innerHTML = `
+    <div class="wotd-icon">${word.icon}</div>
+    <div class="wotd-body">
+      <div class="wotd-word">${word.word}</div>
+      <div class="wotd-type">${word.type}</div>
+      <div class="wotd-def">${word.def}</div>
+      <div class="wotd-example">"${word.ex}"</div>
+      <div class="wotd-date">${dateStr}</div>
+    </div>
+  `;
+}
+
+
+const EMOJI_CATS = [
+  { label: "🎉", name: "Holidays", emojis: ["🎉","🎄","🎃","🦃","🎆","🎇","🧨","🎊","🎋","🎍","🎑","🎐","🔔","🎁","🧧","🎈","🥳","🎀","🌟","🎶"] },
+  { label: "🛫", name: "Travel",   emojis: ["🛫","🚀","🛸","🌍","🏖","🏝","🏔","🗺","🧳","🚢","🚂","🚁","⛺","🎡","🎢","🎠","🗼","🏰","🌋","🌴"] },
+  { label: "🎂", name: "Birthday", emojis: ["🎂","🎈","🥳","🎀","🎁","🧁","🍰","🪅","🎯","🎮","🎳","🏆","🥇","🌟","💫","🌈","🎶","🎸","🎺","🎻"] },
+  { label: "🌸", name: "Nature",   emojis: ["🌸","🌺","🌻","🌈","⭐","🌙","☀","❄","🌊","🍂","🍁","🌿","🌵","🦋","🐬","🐘","🦁","🐧","🐢","🍄"] },
+  { label: "🏅", name: "Sports",   emojis: ["🏅","⚽","🏀","🏈","⚾","🎾","🏐","🎱","🏓","🥊","🎿","🏂","🏄","🧗","🚴","🤸","🎯","🏹","🥋","🤺"] },
+  { label: "🍕", name: "Food",     emojis: ["🍕","🌮","🍣","🍔","🍩","🍦","🧇","🥞","🍇","🍓","🌽","🥑","🍭","🧃","🥂","☕","🧋","🍿","🎂","🍜"] },
+];
+
+let selectedEmoji = '🎉';
+let activeCat = 0;
+
+function buildPicker() {
+  const catsEl = document.getElementById('emoji-cats');
+  const gridEl = document.getElementById('emoji-grid');
+  catsEl.innerHTML = EMOJI_CATS.map((c, i) =>
+    `<button onclick="switchCat(${i})" id="cat-btn-${i}" style="font-size:18px;background:${i===0?'var(--bg-card)':'transparent'};border:0.5px solid ${i===0?'var(--border-hover)':'transparent'};border-radius:6px;padding:3px 5px;cursor:pointer;">${c.label}</button>`
+  ).join('');
+  renderGrid(0);
+}
+
+function switchCat(i) {
+  activeCat = i;
+  document.querySelectorAll('[id^="cat-btn-"]').forEach((b, idx) => {
+    b.style.background = idx === i ? 'var(--bg-card)' : 'transparent';
+    b.style.borderColor = idx === i ? 'var(--border-hover)' : 'transparent';
+  });
+  renderGrid(i);
+}
+
+function renderGrid(i) {
+  const gridEl = document.getElementById('emoji-grid');
+  gridEl.innerHTML = EMOJI_CATS[i].emojis.map(e =>
+    `<button onclick="pickEmoji('${e}')" style="font-size:20px;background:${e===selectedEmoji?'var(--bg-card)':'transparent'};border:0.5px solid ${e===selectedEmoji?'var(--border-hover)':'transparent'};border-radius:6px;padding:3px;cursor:pointer;transition:background 0.1s;">${e}</button>`
+  ).join('');
+}
+
+function pickEmoji(e) {
+  selectedEmoji = e;
+  document.getElementById('emoji-preview').textContent = e;
+  document.getElementById('emoji-btn').style.borderColor = 'var(--purple)';
+  setTimeout(() => { document.getElementById('emoji-btn').style.borderColor = ''; }, 800);
+  renderGrid(activeCat);
+  closePicker();
+}
+
+function togglePicker() {
+  const d = document.getElementById('emoji-dropdown');
+  if (d.style.display === 'none') { d.style.display = 'block'; } else { closePicker(); }
+}
+
+function closePicker() {
+  document.getElementById('emoji-dropdown').style.display = 'none';
+}
+
+function handleCardClick(e, id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  const isExpanding = !card.classList.contains('expanded');
+  if (isExpanding) {
+    delete cardFactIndex[id];
+    const ev = events.find(ev => ev.id === id);
+    if (ev) {
+      const days = getDaysUntil(ev.date);
+      const color = (typeColors[ev.type] || typeColors.holiday).bar;
+      const fact = getSpaceFact(days, id);
+      const panel = card.querySelector('.phrase-bubble');
+      if (panel) {
+        panel.innerHTML = `<span style="font-size:22px;display:block;margin-bottom:6px;">${fact.icon}</span>
+          <span style="font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-tertiary);display:block;margin-bottom:5px;">Space fact</span>
+          ${fact.text}`;
+      }
+      const { pct } = getMissionProgress(ev);
+      setTimeout(() => animateTrack(id, pct, color), 40);
+    }
+  }
+  card.classList.toggle('expanded');
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('emoji-picker-wrap');
+  if (wrap && !wrap.contains(e.target)) closePicker();
+});
+
+document.getElementById('inp-name').addEventListener('keydown', e => { if (e.key === 'Enter') addEvent(); });
+
+buildPicker();
+loadEvents();
+renderWordOfDay();
+document.getElementById('today-bar').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
